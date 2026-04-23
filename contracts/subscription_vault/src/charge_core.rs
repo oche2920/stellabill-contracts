@@ -213,7 +213,11 @@ pub fn charge_one(
                 SubscriptionChargedEvent {
                     subscription_id,
                     merchant: sub.merchant.clone(),
+                    token: sub.token.clone(),
                     amount: charge_amount,
+                    merchant_amount,
+                    fee_amount,
+                    remaining_balance: sub.prepaid_balance,
                     lifetime_charged: sub.lifetime_charged,
                 },
             );
@@ -473,6 +477,7 @@ pub fn charge_usage_one(
                     merchant: sub.merchant.clone(),
                     usage_amount,
                     token: sub.token.clone(),
+                    remaining_balance: sub.prepaid_balance,
                     timestamp: now,
                     reference,
                 },
