@@ -91,8 +91,6 @@ mod test_utils;
 #[cfg(test)]
 mod test;
 #[cfg(test)]
-mod test_utils;
-#[cfg(test)]
 mod test_auth_fuzz;
 #[cfg(test)]
 mod test_expiration;
@@ -127,11 +125,11 @@ pub use types::{
     AcceptedToken, AccruedTotals, AdminRotatedEvent, BatchChargeResult, BatchWithdrawResult,
     BillingChargeKind, BillingCompactedEvent, BillingCompactionSummary, BillingRetentionConfig,
     BillingStatement, BillingStatementAggregate, BillingStatementsPage, CapInfo,
-    ChargeExecutionResult, ContractSnapshot, DataKey, EmergencyStopDisabledEvent,
+    ChargeExecutionResult, ContractInitializedEvent, ContractSnapshot, DataKey, EmergencyStopDisabledEvent,
     EmergencyStopEnabledEvent, Error, FundsDepositedEvent, LifetimeCapReachedEvent, MerchantConfig,
     MerchantPausedEvent, MerchantUnpausedEvent, MerchantWithdrawalEvent, MetadataDeletedEvent,
     MetadataSetEvent, MigrationExportEvent, NextChargeInfo, OneOffChargedEvent, OracleConfig,
-    OraclePrice, PartialRefundEvent, PlanTemplate, PlanTemplateUpdatedEvent, ProtocolFeeChargedEvent,
+    OraclePrice, PartialRefundEvent, PlanTemplate, PlanTemplateCreatedEvent, PlanTemplateUpdatedEvent, ProtocolFeeChargedEvent,
     ProtocolFeeConfiguredEvent, RecoveryEvent,
     RecoveryReason, Subscription, SubscriptionCancelledEvent, SubscriptionChargeFailedEvent,
     SubscriptionChargedEvent, SubscriptionCreatedEvent, SubscriptionMigratedEvent,

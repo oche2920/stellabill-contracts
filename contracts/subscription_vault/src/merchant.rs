@@ -299,8 +299,24 @@ pub fn withdraw_merchant_funds_for_token(
     // ──────────────────────────────────────────────────────────────────────────
     set_merchant_balance(env, &merchant, &token_addr, &new_balance);
     crate::accounting::sub_total_accounted(env, &token_addr, amount)?;
-    env.events()
-        .publish((Symbol::new(env, "withdrawn"), merchant.clone()), amount);
+
+    // Update earnings record for withdrawals
+    let mut earnings = get_merchant_token_earnings(env, &merchant, &token_addr);
+    earnings.withdrawals = earnings
+        .withdrawals
+        .checked_add(amount)
+        .ok_or(Error::Overflow)?;
+    set_merchant_token_earnings(env, &merchant, &token_addr, &earnings);
+
+    env.events().publish(
+        (Symbol::new(env, "withdrawn"), merchant.clone()),
+        crate::types::MerchantWithdrawalEvent {
+            merchant: merchant.clone(),
+            token: token_addr.clone(),
+            amount,
+            remaining_balance: new_balance,
+        },
+    );
 
     // ──────────────────────────────────────────────────────────────────────────
     // INTERACTIONS: Only after internal state is consistent, call token contract
