@@ -108,20 +108,30 @@ Tests verify correct number of events in multi-step workflows:
 
 ### Lifecycle Events (9 tests)
 - `test_init_emits_event`
-- `test_create_subscription_emits_event`
+- `test_create_subscription_emits_event_with_token` (verifies token field in SubscriptionCreatedEvent)
 - `test_pause_subscription_emits_event`
 - `test_resume_subscription_emits_event`
-- `test_cancel_subscription_emits_event`
+- `test_cancel_subscription_emits_event_with_refund` (verifies refund_amount field)
 - `test_set_min_topup_emits_event`
 - `test_withdraw_merchant_funds_emits_event`
 - `test_lifecycle_events_sequence`
 - `test_multiple_deposits_emit_multiple_events`
 
-### Billing Events (3 tests)
-- `test_deposit_funds_emits_event`
-- `test_charge_subscription_emits_event`
+### Deposit / Top-up Events (3 tests)
+- `test_deposit_emits_funds_deposited_event` (verifies all fields: subscription_id, subscriber, amount, prepaid_balance)
+- `test_multiple_deposits_emit_cumulative_balance`
+- `test_failed_deposit_no_event`
+
+### Charge Events (4 tests)
+- `test_charge_emits_event_with_gross_fee_net` (verifies token, amount, merchant_amount, fee_amount, remaining_balance)
+- `test_failed_charge_no_event`
+- `test_usage_charge_emits_event_with_remaining_balance`
 - `test_charge_event_data_accuracy`
-- `test_deposit_event_cumulative_balance`
+
+### Refund and Withdrawal Events (3 tests)
+- `test_merchant_withdrawal_emits_full_event` (verifies MerchantWithdrawalEvent struct fields)
+- `test_subscriber_withdrawal_emits_event_with_token`
+- `test_partial_refund_emits_event_with_token_and_balance`
 
 ### Failure Cases (5 tests)
 - `test_failed_deposit_no_event`
@@ -134,6 +144,11 @@ Tests verify correct number of events in multi-step workflows:
 - `test_batch_charge_no_events_on_empty`
 - `test_batch_charge_emits_events_for_successes`
 - `test_batch_charge_partial_failure_events`
+
+### Security Invariants (3 tests)
+- `test_created_event_no_metadata_leakage` (events must not leak optional sensitive metadata)
+- `test_batch_charge_event_ordering_is_deterministic` (events in subscription ID order)
+- `test_batch_charge_partial_failure_no_success_event_for_failed` (failures never emit success events)
 
 ## Implementation Notes
 
@@ -167,11 +182,19 @@ if amount < min_topup {
 
 ### Testing Approach
 
-Due to Soroban SDK event handling in tests, we verify event emission by counting events before and after operations rather than inspecting event data directly. This approach:
-- Confirms events are emitted
-- Verifies correct number of events
-- Ensures no events on failures
-- Works reliably across SDK versions
+Event schema tests in `test_event_schemas.rs` verify both emission and data correctness:
+- Decode event data using `TryFromVal` to verify field values
+- Count events before/after to confirm exactly one event per operation
+- Verify no events on failures (security invariant)
+- Verify event ordering in batch operations (determinism invariant)
+
+```rust
+// Example: verify FundsDepositedEvent fields
+let event = FundsDepositedEvent::try_from_val(&ctx.env, &data).unwrap();
+assert_eq!(event.subscription_id, sub_id);
+assert_eq!(event.amount, 5_000_000);
+assert_eq!(event.prepaid_balance, 5_000_000);
+```
 
 ## Indexer Integration
 
@@ -196,6 +219,7 @@ When adding new contract functions:
 
 ## Known Limitations
 
-- Event data validation in tests is limited by Soroban SDK's Val type not implementing PartialEq
-- Tests verify event emission by counting rather than inspecting event data
+- Event data validation uses `TryFromVal` which requires the event struct to implement `TryFromVal`
+- All `#[contracttype]` event structs support `TryFromVal` via the Soroban SDK derive macro
+- Tests in `test_event_schemas.rs` verify both emission count and field values directly
 - Event data correctness is verified indirectly through state assertions
