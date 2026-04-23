@@ -66,16 +66,22 @@ Emitted when a subscription is charged for a billing interval.
 **Fields:**
 - `subscription_id` (u32): Subscription that was charged
 - `merchant` (Address): Merchant receiving the payment
-- `amount` (i128): Amount charged (in token base units)
-- `remaining_balance` (i128): Prepaid balance remaining after charge
+- `token` (Address): Settlement token used for this charge
+- `amount` (i128): Gross amount charged (in token base units)
+- `merchant_amount` (i128): Net amount credited to merchant (after protocol fee)
+- `fee_amount` (i128): Protocol fee amount (0 if no fee configured)
+- `remaining_balance` (i128): Subscriber's prepaid balance remaining after charge
+- `lifetime_charged` (i128): Cumulative total charged over subscription lifetime
 
 **Indexing Strategy:**
 - Index by `subscription_id` for payment history
 - Index by `merchant` to track merchant revenue
+- Use `amount` (gross), `fee_amount`, `merchant_amount` for fee reconciliation
 - Monitor `remaining_balance` for insufficient balance warnings
 
 **Example Use Cases:**
-- Generate merchant revenue reports
+- Generate merchant revenue reports (use `merchant_amount` for net revenue)
+- Track protocol fee collection (use `fee_amount`)
 - Track subscription payment history
 - Trigger notifications when balance is insufficient for next charge
 
@@ -167,6 +173,86 @@ Emitted when a merchant withdraws accumulated funds.
 - Display merchant withdrawal history
 - Track merchant payout schedules
 - Reconcile merchant balances
+
+---
+
+### ContractInitializedEvent
+
+**Topic:** `initialized`
+
+Emitted when the contract is initialized.
+
+**Fields:**
+- `token` (Address): Primary settlement token address
+- `admin` (Address): Initial admin address
+- `min_topup` (i128): Minimum deposit threshold
+- `grace_period` (u64): Grace period in seconds
+- `timestamp` (u64): Ledger timestamp when initialized
+
+---
+
+### PlanTemplateCreatedEvent
+
+**Topic:** `plan_template_created`
+
+Emitted when a merchant creates a new plan template.
+
+**Fields:**
+- `plan_template_id` (u32): Newly allocated plan template ID
+- `merchant` (Address): Merchant that created the plan
+- `token` (Address): Settlement token for subscriptions from this plan
+- `amount` (i128): Recurring charge amount per interval
+- `interval_seconds` (u64): Billing interval in seconds
+- `usage_enabled` (bool): Whether usage-based charging is enabled
+- `lifetime_cap` (Option<i128>): Optional lifetime cap
+- `timestamp` (u64): Ledger timestamp when created
+
+---
+
+### OneOffChargedEvent
+
+**Topic:** `oneoff_ch`
+
+Emitted when a merchant applies a one-off charge.
+
+**Fields:**
+- `subscription_id` (u32): Subscription that was charged
+- `merchant` (Address): Merchant that applied the charge
+- `token` (Address): Settlement token used
+- `amount` (i128): Amount charged
+- `remaining_balance` (i128): Subscriber's prepaid balance after charge
+- `timestamp` (u64): Ledger timestamp
+
+---
+
+### SubscriberWithdrawalEvent
+
+**Topic:** `sub_withdrawn`
+
+Emitted when a subscriber withdraws their remaining prepaid balance after cancellation.
+
+**Fields:**
+- `subscription_id` (u32): Subscription being withdrawn from
+- `subscriber` (Address): Subscriber receiving the funds
+- `token` (Address): Settlement token returned
+- `amount` (i128): Amount withdrawn
+- `timestamp` (u64): Ledger timestamp
+
+---
+
+### PartialRefundEvent
+
+**Topic:** `partial_refund`
+
+Emitted when an admin processes a partial refund to a subscriber.
+
+**Fields:**
+- `subscription_id` (u32): Subscription receiving the refund
+- `subscriber` (Address): Subscriber receiving the refund
+- `token` (Address): Settlement token returned
+- `amount` (i128): Amount refunded
+- `remaining_balance` (i128): Subscriber's prepaid balance after refund
+- `timestamp` (u64): Ledger timestamp
 
 ---
 
@@ -317,3 +403,14 @@ events.on('charged', (event) => {
 
 - **v1.0** (2026-02-20): Initial event schema definitions for all lifecycle actions
 - **v1.1** (2026-02-23): Added AdminRotationEvent and RecoveryEvent for indexers
+- **v1.2** (2026-04-23): Complete event schema overhaul for indexer completeness
+  - SubscriptionCreatedEvent: added `token` field
+  - SubscriptionChargedEvent: added `token`, `merchant_amount`, `fee_amount`, `remaining_balance` fields for gross/fee/net split
+  - UsageStatementEvent: added `remaining_balance` field
+  - OneOffChargedEvent: added `token`, `remaining_balance`, `timestamp` fields
+  - SubscriberWithdrawalEvent: added `token`, `timestamp` fields
+  - PartialRefundEvent: added `token`, `remaining_balance` fields
+  - MerchantWithdrawalEvent: now emits full struct (was raw amount)
+  - Added ContractInitializedEvent struct
+  - Added PlanTemplateCreatedEvent for plan creation tracking
+  - Fixed duplicate struct definitions in types.rs

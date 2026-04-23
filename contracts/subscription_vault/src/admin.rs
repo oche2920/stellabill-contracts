@@ -46,7 +46,13 @@ pub fn do_init(
     instance.set(&DataKey::SchemaVersion, &1u32);
     env.events().publish(
         (Symbol::new(env, "initialized"),),
-        (token, admin, min_topup, grace_period),
+        crate::types::ContractInitializedEvent {
+            token,
+            admin,
+            min_topup,
+            grace_period,
+            timestamp: env.ledger().timestamp(),
+        },
     );
     Ok(())
 }
